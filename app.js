@@ -66,7 +66,7 @@ bot.dialog('Bi.Hype.Greet', [
         var hypeTimeLine = builder.EntityRecognizer.findEntity(intent.entities, 'datetimeV2');
 
         var hype = session.dialogData.hype = {
-            timeLine: title ? hypeTimeLine.entity : null,
+            timeLine: hypeTimeLine ? hypeTimeLine.entity : null,
         };
         
         // Prompt for title
