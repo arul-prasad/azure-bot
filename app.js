@@ -58,6 +58,36 @@ bot.recognizer(recognizer);
 // See https://docs.microsoft.com/en-us/bot-framework/nodejs/bot-builder-nodejs-recognize-intent-luis 
 
 // CreateNote dialog
+
+bot.dialog('Bi.Hype.Greet', [
+    function (session, args, next) {
+        // Resolve and store any Note.Title entity passed from LUIS.
+        var intent = args.intent;
+        var hypeTimeLine = builder.EntityRecognizer.findEntity(intent.entities, 'datetimeV2');
+
+        var hype = session.dialogData.hype = {
+            timeLine: title ? hypeTimeLine.entity : null,
+        };
+        
+        // Prompt for title
+        if (!hype.timeLine) {
+            builder.Prompts.text(session, 'provide me the date or any timline you need');
+        } else {
+            next();
+        }
+    },
+    function (session, results, next) {
+        var hype = session.dialogData.hype;
+        if (results.response) {
+            hype.timeLine = results.response;
+        }
+        
+        session.endDialog('fetching hype info for the date "%s"', hype.timeLine);
+    }
+]).triggerAction({ 
+    matches: 'Bi.Hype.Greet'
+})
+
 bot.dialog('CreateNote', [
     function (session, args, next) {
         // Resolve and store any Note.Title entity passed from LUIS.
