@@ -28,6 +28,7 @@ function uploadZip(callback) {
     } else if (resp.statusCode >= 400) {
       callback(resp);
     }
+    console.log
   })
   .on('error', function(err) {
     callback(err)

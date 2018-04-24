@@ -23,16 +23,20 @@ server.post('/api/messages', connector.listen());
 * We provide adapters for Azure Table, CosmosDb, SQL Azure, or you can implement your own!
 * For samples and documentation, see: https://github.com/Microsoft/BotBuilder-Azure
 * ---------------------------------------------------------------------------------------- */
-
-var tableName = 'botdata';
-var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, process.env['AzureWebJobsStorage']);
-var tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azureTableClient);
+var tableStorage;
+if(process.env['emulator']) {
+    tableStorage = new builder.MemoryBotStorage();
+} else {
+    var tableName = 'botdata';
+    var azureTableClient = new botbuilder_azure.AzureTableClient(tableName, process.env['AzureWebJobsStorage']);
+    tableStorage = new botbuilder_azure.AzureBotStorage({ gzipData: false }, azureTableClient);
+}
 
 // Create your bot with a function to receive messages from the user
 // This default message handler is invoked if the user's utterance doesn't
 // match any intents handled by other dialogs.
 var bot = new builder.UniversalBot(connector, function (session, args) {
-    session.send("Hi... I'm the note bot sample. I can create new notes, read saved notes to you and delete notes.");
+    session.send("Hi! I'm the BI Bot. I able to give you on insights on Hype products Live");
 
    // If the object for storing notes in session.userData doesn't exist yet, initialize it
    if (!session.userData.notes) {
@@ -44,8 +48,8 @@ var bot = new builder.UniversalBot(connector, function (session, args) {
 bot.set('storage', tableStorage);
 
 // Make sure you add code to validate these fields
-var luisAppId = process.env.LuisAppId;
-var luisAPIKey = process.env.LuisAPIKey;
+var luisAppId = process.env.LuisAppId || 'b28fc6c7-fb75-4eb6-ad29-d893fd16f456';
+var luisAPIKey = process.env.LuisAPIKey || '138ed6a9de184a63a96a91db4616ab5a';
 var luisAPIHostName = process.env.LuisAPIHostName || 'westus.api.cognitive.microsoft.com';
 
 const LuisModelUrl = 'https://' + luisAPIHostName + '/luis/v2.0/apps/' + luisAppId + '?subscription-key=' + luisAPIKey;
@@ -61,28 +65,22 @@ bot.recognizer(recognizer);
 
 bot.dialog('Bi.Hype.Greet', [
     function (session, args, next) {
-        // Resolve and store any Note.Title entity passed from LUIS.
+        // Resolve and store any Bi.Hype.Greet entity passed from LUIS.
         var intent = args.intent;
-        var hypeTimeLine = builder.EntityRecognizer.findEntity(intent.entities, 'datetimeV2');
+        var hypeTimeLine = builder.EntityRecognizer.findEntity(intent.entities, 'builtin.datetimeV2.date');
 
         var hype = session.dialogData.hype = {
-            timeLine: hypeTimeLine ? hypeTimeLine.entity : null,
+            timeLine: hypeTimeLine ? hypeTimeLine.entity : 'today',
         };
         
         // Prompt for title
-        if (!hype.timeLine) {
-            builder.Prompts.text(session, 'provide me the date or any timline you need');
-        } else {
-            next();
+        if (hype.timeLine) {
+            session.send('Welcome to Bi Bot, i am trained to give you BI insights on Hype!');
+            session.send('In a little while i will fetch for hype new prospects %s for you...', hype.timeLine);
+            setTimeout(() => {
+                session.send('on %s we have 1000 New prospects created for Hype Start', hype.timeLine);
+               }, 3000);
         }
-    },
-    function (session, results, next) {
-        var hype = session.dialogData.hype;
-        if (results.response) {
-            hype.timeLine = results.response;
-        }
-        
-        session.endDialog('fetching hype info for the date "%s"', hype.timeLine);
     }
 ]).triggerAction({ 
     matches: 'Bi.Hype.Greet'
