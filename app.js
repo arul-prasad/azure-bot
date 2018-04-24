@@ -35,15 +35,28 @@ if(process.env['emulator']) {
 // Create your bot with a function to receive messages from the user
 // This default message handler is invoked if the user's utterance doesn't
 // match any intents handled by other dialogs.
-var bot = new builder.UniversalBot(connector, function (session, args) {
-    session.send("Hi! I'm the BI Bot. I able to give you on insights on Hype products Live");
+var bot = new builder.UniversalBot(connector, [
+    
+    function(session,args,next) {
+        if(!session.userData.welcomeDone) {
+            session.beginDialog('Welcome', session.userData.welcomeDone);
+        }
+        else {
+            session.endDialog();
+        }
+    }, 
 
-   // If the object for storing notes in session.userData doesn't exist yet, initialize it
-   if (!session.userData.notes) {
-       session.userData.notes = {};
-       console.log("initializing userData.notes in default message handler");
-   }
-});
+    function (session, results) {
+        session.userData.welcomeDone = results.response
+    },
+
+    function(session,results) {
+
+     session.send("Hi! I'm the BI Bot. I able to give you on insights on Hype products Live");
+
+    // If the object for storing notes in session.userData doesn't exist yet, initialize it
+    }
+]);
 
 bot.set('storage', tableStorage);
 
@@ -63,30 +76,72 @@ bot.recognizer(recognizer);
 
 // CreateNote dialog
 
+bot.dialog('Welcome', [
+    (session,args,next) => {
+        session.dialogData.welcomeDone = args || {};
+        session.send('Welcome to Bi Bot, i am trained to give you BI insights on all Hype products!');
+        session.endDialogWithResult({response : session.dialogData.welcomeDone});
+    }
+])
+
 bot.dialog('Bi.Hype.Greet', [
     function (session, args, next) {
         // Resolve and store any Bi.Hype.Greet entity passed from LUIS.
         var intent = args.intent;
         var hypeTimeLine = builder.EntityRecognizer.findEntity(intent.entities, 'builtin.datetimeV2.date');
 
-        var hype = session.dialogData.hype = {
+        var hypeType = builder.EntityRecognizer.findEntity(intent.entities, 'Bi.Hype.Type');
+
+        session.dialogData.hype = {
             timeLine: hypeTimeLine ? hypeTimeLine.entity : 'today',
+            type : hypeType ? hypeType.entity : 'hype start'
         };
-        
-        // Prompt for title
-        if (hype.timeLine) {
-            session.send('Welcome to Bi Bot, i am trained to give you BI insights on Hype!');
-            session.send('In a little while i will fetch for hype new prospects %s for you...', hype.timeLine);
-            setTimeout(() => {
-                session.send('on %s we have 1000 New prospects created for Hype Start', hype.timeLine);
-               }, 3000);
-        }
+        var hype = session.dialogData.hype;
+        session.send('collecting information on %s for %s',hype.type, hype.timeLine);
+        session.sendTyping();
+        //TODO - use proactive message.
+        setTimeout(() => {
+            if(hype.type && (hype.type.toLowerCase() == 'hype' ||  hype.type.toLowerCase() == 'hype start')) {
+                hype.stats = {
+                    newProspects : 1000,
+                    average : 800,
+                    highest : true,
+                    lowest : false,
+                }
+            } else {
+                hype.stats = {
+                    newProspects : 200,
+                    average : 500,
+                    highest : false,
+                    lowest : true,
+                }
+            }
+            if(hype.stats.newProspects > hype.stats.average) {
+                if(hype.stats.highest) {
+                    session.send('on %s we have **%s New prospects** created for **%s**, it is a **Highest** for this month and it is **above average of %s**', 
+                    hype.timeLine,hype.stats.newProspects,hype.type, hype.stats.average);
+                } else {
+                    session.send('on %s we have **%s New prospects** created for **%s**, it is **above average of %s**', 
+                    hype.timeLine,hype.stats.newProspects,hype.type, hype.stats.average);
+                }
+            } else {
+                if(hype.stats.lowest) {
+                    session.send('on %s we have **%s New prospects** created for **%s**, **it is a Lowest for this month**', 
+                    hype.timeLine,hype.stats.newProspects,hype.type, hype.stats.average);
+                } else {
+                    session.send('on %s we have **%s New prospects** created for **%s**, it is **inline with average of %s**', 
+                    hype.timeLine,hype.stats.newProspects,hype.type, hype.stats.average);
+                }                    
+            }
+            session.send('[bing](http://www.bing.com)')
+            session.send('![duck](http://aka.ms/Fo983c)')
+        }, 3000);
     }
 ]).triggerAction({ 
     matches: 'Bi.Hype.Greet'
 })
 
-bot.dialog('CreateNote', [
+/*bot.dialog('CreateNote', [
     function (session, args, next) {
         // Resolve and store any Note.Title entity passed from LUIS.
         var intent = args.intent;
@@ -214,4 +269,4 @@ function noteCount(notes) {
         i++;
     }
     return i;
-}
+} */
